@@ -1,11 +1,11 @@
 package Server
 
 import (
-	"bufio"
 	"net"
 	"os"
 	"sync"
 	"errors"
+	"log"
 	"../csprotocol"
 )
 
@@ -14,11 +14,15 @@ type Server struct {
 	networkListener net.Listener
 
 	roomnameToRoom   map[string]*Chatroom
-	roomnameToRoomLock sync.Mutex
+	roomnameToRoomLock *sync.Mutex
 }
 
 // Setup sets up the connection to listen on the supplied port
 func (server *Server) Setup(host string, port string) {
+	server.roomnameToRoom = make(map[string]*Chatroom)
+	server.roomnameToRoomLock = &sync.Mutex{}
+
+	log.Printf("Setting up server. Will listen via TCP on localhost port %s", port)
 	server.networkListener, _ = net.Listen("tcp", ":"+port)
 }
 
@@ -27,23 +31,22 @@ func (server *Server) resolveChatroomReq(requestingClient *ClientConnection, cha
 	server.roomnameToRoomLock.Lock()
 	defer server.roomnameToRoomLock.Unlock()
 
-	chatroom, ok := server.roomnameToRoom[chatroomReq.ChatroomID]
-
+	// Make a new empty chatroom if needed
 	if chatroomReq.IsNewChatroom {
+		_, ok := server.roomnameToRoom[chatroomReq.ChatroomID]
 		if ok {
 			return errors.New("trying to create a chatroom that already exists")
 		}
-		newRoom := &Chatroom{ID: chatroomReq.ChatroomID, password: chatroomReq.ChatroomPassword}
-		newRoom.clients = append(newRoom.clients, requestingClient)
+		newRoom := NewChatroom(chatroomReq.ChatroomID, chatroomReq.ChatroomPassword)
 		server.roomnameToRoom[chatroomReq.ChatroomID] = newRoom
-	} else {
-		if !ok {
-			return errors.New("trying to join a chatroom doesn't exist")
-		}
-		chatroom.clientsLock.Lock()
-		defer chatroom.clientsLock.Unlock()
-		chatroom.clients = append(chatroom.clients, requestingClient)
 	}
+
+	// Add the requestingClient to the existing chatroom
+	chatroom, ok := server.roomnameToRoom[chatroomReq.ChatroomID]
+	if !ok {
+		return errors.New("trying to join a chatroom doesn't exist")
+	}
+	chatroom.addClient(requestingClient)
 	return nil
 }
 
@@ -59,12 +62,7 @@ func (server *Server) resolveMessageBroadcastReq(requestingClient *ClientConnect
 }
 
 // Determines client intent then forever listens for messages (i.e. Message Broadcast Requests) from the client and forwards them.
-func (server *Server) handleClient(clientConn net.Conn) {
-	client := &ClientConnection{
-		Connection: clientConn,
-		ConnectionReader: bufio.NewReader(clientConn),
-	}
-
+func (server *Server) handleClient(client *ClientConnection) {
 	// Determine the client's identity.
 	client.resolveIdentityReq()
 
@@ -73,6 +71,8 @@ func (server *Server) handleClient(clientConn net.Conn) {
 		func (rq *ClientConnection, crq csprotocol.ChatroomReq) error {
 			return server.resolveChatroomReq(rq, crq)
 		})
+
+	log.Printf("%s has joined %s", client.ID, client.Roomname)
 
 	for {
 		// Wait for a Message Broadcast request from the client.
@@ -86,9 +86,11 @@ func (server *Server) handleClient(clientConn net.Conn) {
 
 // Forever listen for new connections.
 func (server *Server) registerNewConnections() {
+	log.Printf("Waiting for new connections")
 	for {
 		newConnection, _ := server.networkListener.Accept()
-		go server.handleClient(newConnection)
+		client := NewClientConnection(newConnection)
+		go server.handleClient(client)
 	}
 }
 

@@ -10,7 +10,15 @@ type Chatroom struct {
 	password string
 
 	clients []*ClientConnection
-	clientsLock sync.Mutex
+	clientsLock *sync.Mutex
+}
+
+func NewChatroom(ID string, password string) *Chatroom {
+	return &Chatroom{
+		ID: ID, password: password,
+		clients: make([]*ClientConnection, 0),
+		clientsLock: &sync.Mutex{},
+	}
 }
 
 func (room *Chatroom) broadcastToAllExcept(excludedClient *ClientConnection, msgNtf csprotocol.MessageNotification) {
@@ -24,3 +32,11 @@ func (room *Chatroom) broadcastToAllExcept(excludedClient *ClientConnection, msg
 		client.sendMessageNotification(msgNtf)
 	}
 }
+
+func (room *Chatroom) addClient(newClient *ClientConnection) {
+	room.clientsLock.Lock()
+	defer room.clientsLock.Unlock()
+
+	room.clients = append(room.clients, newClient)
+}
+

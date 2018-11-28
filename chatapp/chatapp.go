@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"log"
 	"./client"
 	"./server"
 )
@@ -31,11 +32,23 @@ func (c config) isClient() bool {
 	return strings.ToLower(c.NodeType) == "client"
 }
 
+func (c config) validateConfig() {
+	if c.NodeType == "" {
+		log.Fatal("The `node_type` flag is required! Please set it to either `client` or `server`.")
+	} else if c.HostIP == "" {
+		log.Fatal("The `host_ip` flag is required! If you're trying to run the client code, set it to the Host's IP." +
+			"If you're trying to run the server code, set it to `localhost`");
+	} else if c.HostPort == "" {
+		log.Fatal("The `host_port` flag is required! If you're trying to run the client code, set it to the Host's Port." +
+			"If you're trying to run the server code, set it to some unused port > 1024.");
+	}
+}
+
 func getConfig() (p config) {
 	defer flag.Parse()
-	flag.StringVar(&p.NodeType, "node_type", "client", "'client' or 'server'")
-	flag.StringVar(&p.HostIP, "host_ip", "localhost", "IP of host application.")
-	flag.StringVar(&p.HostPort, "host_port", "5050", "Port of host application.")
+	flag.StringVar(&p.NodeType, "node_type", "", "'client' or 'server'")
+	flag.StringVar(&p.HostIP, "host_ip", "", "IP of host application.")
+	flag.StringVar(&p.HostPort, "host_port", "", "Port of host application.")
 	return
 }
 
@@ -47,6 +60,7 @@ func sigTermChannel() chan os.Signal {
 
 func main() {
 	cfg := getConfig()
+	cfg.validateConfig()
 
 	var node Endpoint
 	if cfg.isClient() {
@@ -55,7 +69,7 @@ func main() {
 		node = &Server.Server{}
 	} else {
 		fmt.Println("Error: `node_type` must be client or server")
-		return
+		os.Exit(1)	
 	}
 
 	node.Setup(cfg.HostIP, cfg.HostPort)

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"log"
 	"../csprotocol"
 )
 
@@ -21,8 +22,13 @@ func (client *Client) Setup(host string, port string) {
 	client.connection, _ = net.Dial("tcp", host+":"+port)
 	client.networkReader = bufio.NewReader(client.connection)
 	client.stdinReader = bufio.NewReader(os.Stdin)
-	client.joinChatroom()
 	client.getNewClientID()
+	client.joinChatroom()
+}
+
+func (client *Client) readInput() string {
+	inputStr, _ := client.stdinReader.ReadString('\n')
+	return strings.TrimSpace(inputStr)
 }
 
 func (client *Client) getNewClientID() {
@@ -30,11 +36,14 @@ func (client *Client) getNewClientID() {
 	for {
 		// determine parameters
 		identityRequest := csprotocol.ClientIdentityReq{}
-
-		identityRequest.RequestedID, _ = client.stdinReader.ReadString('\n')
+		identityRequest.RequestedID = client.readInput()
 
 		// request username
-		reqMarshalled, _ := json.Marshal(identityRequest)
+		reqMarshalled, err := json.Marshal(identityRequest)
+		if err != nil {
+			log.Fatal("Couldn't marshal identityRequest")
+		}
+
 		fmt.Fprintf(client.connection, string(reqMarshalled)+"\n")
 
 		// check to make sure request succeded
@@ -53,18 +62,21 @@ func (client *Client) joinChatroom() {
 		chatroomReq := csprotocol.ChatroomReq{}
 
 		fmt.Print("Press 'y' if you want to make a new chatroom and 'n' if you want to join an existing one:")
-		yOrN, _ := client.stdinReader.ReadString('\n')
+		yOrN := client.readInput()
+		fmt.Println(yOrN)
 		if strings.ToLower(yOrN) == "y" {
+			fmt.Println("Making a new chatroom")
 			chatroomReq.IsNewChatroom = true
 		} else {
+			fmt.Println("Joining an exisiting chatroom")
 			chatroomReq.IsNewChatroom = false
 		}
 
 		fmt.Print("Enter the name of the chatroom you want to join or create:")
-		chatroomReq.ChatroomID, _ = client.stdinReader.ReadString('\n')
+		chatroomReq.ChatroomID = client.readInput()
 
 		fmt.Print("Enter the password of the chatroom you want to join or create:")
-		chatroomReq.ChatroomPassword, _ = client.stdinReader.ReadString('\n')
+		chatroomReq.ChatroomPassword = client.readInput()
 
 		// request chatroom
 		reqMarshalled, _ := json.Marshal(chatroomReq)
@@ -134,7 +146,7 @@ func (client *Client) sendLoop() {
 		messageReq := csprotocol.MessageBroadcastReq{LogOut: false}
 
 		fmt.Print("> ")
-		messageReq.Message, _ = client.stdinReader.ReadString('\n')
+		messageReq.Message = client.readInput()
 
 		// request message to be broadcasted
 		reqMarshalled, _ := json.Marshal(messageReq)
