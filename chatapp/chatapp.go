@@ -16,7 +16,16 @@ func exit_message(message string) bool {
 	return strings.TrimSpace(strings.ToLower(message)) == "\\quit"
 }
 
+func print_help() {
+	fmt.Println("Usage: <program> [\"client\"|\"server\"] <host> <port>")
+	fmt.Println("The <host> field is ignored if this program is run as a server.")
+}
+
 func main() {
+	if len(os.Args) != 4 {
+		print_help()
+		return
+	}
 	args := os.Args[1:]
 	node_type := args[0]
 	host := args[1]
@@ -28,7 +37,7 @@ func main() {
 	} else if node_type == "server" {
 		node = &Server{}
 	} else {
-		//TODO print informative error message
+		print_help()
 		return
 	}
 
