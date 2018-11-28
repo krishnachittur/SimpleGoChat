@@ -43,3 +43,8 @@ func (this *Server) send_loop(quit chan bool) {
 		}
 	}
 }
+
+func (this *Server) run_loop(quit chan bool) {
+	go this.listen_loop(quit)
+	go this.send_loop(quit)
+}

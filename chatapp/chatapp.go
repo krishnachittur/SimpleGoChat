@@ -9,8 +9,7 @@ import (
 //client or server endpoint
 type Endpoint interface {
 	setup(host string, port string)
-	listen_loop(quit chan bool)
-	send_loop(quit chan bool)
+	run_loop(quit chan bool)
 }
 
 func exit_message(message string) bool {
@@ -40,8 +39,7 @@ func main() {
 
 	quit := make(chan bool)
 
-	go node.listen_loop(quit)
-	go node.send_loop(quit)
+	go node.run_loop(quit)
 
 	<-quit
 	fmt.Println("Terminating")
