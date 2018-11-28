@@ -16,19 +16,19 @@ type ClientConnection struct {
 	ConnectionReader     *bufio.Reader
 }
 
-func (cc ClientConnection) sendMessageNotfication(mn csprotocol.MessageNotification) {
+func (cc *ClientConnection) sendMessageNotification(mn csprotocol.MessageNotification) {
 	marshalledReq, _ := json.Marshal(mn)
-	fmt.Fprintf(cc.Connection,, string(marshalledReq)+"\n")
+	fmt.Fprintf(cc.Connection, string(marshalledReq)+"\n")
 }
 
 // call this method to let the client know the status of the previous request
-func (cc ClientConnection) sendRequestStatus(success bool) {
+func (cc *ClientConnection) sendRequestStatus(success bool) {
 	reqStatus := csprotocol.RequestStatus{PreviousRequestSucceeded: success}
 	marshalledReq, _ := json.Marshal(reqStatus)
 	fmt.Fprintf(cc.Connection, string(marshalledReq)+"\n")
 }
 
-func (cc ClientConnection) resolveIdentityRequest() {
+func (cc *ClientConnection) resolveIdentityReq() {
 	identityReq := csprotocol.ClientIdentityReq{}
 
 	// block until a client identity request has been received
@@ -36,15 +36,15 @@ func (cc ClientConnection) resolveIdentityRequest() {
 	json.Unmarshal(data, &identityReq)
 
 	// set the client ID
-	cc.clientID = identityReq.RequestedID
+	cc.ID = identityReq.RequestedID
 
 	// acknowledge satisfaction
 	cc.sendRequestStatus(true)
 }
 
-type chatroomRequestResolver func(ClientConnection, csprotocol.ChatroomReq) error
+type chatroomRequestResolver func(*ClientConnection, csprotocol.ChatroomReq) error
 
-func (cc ClientConnection) resolveRoomReq(resolver chatroomRequestResolver) {
+func (cc *ClientConnection) resolveRoomReq(resolver chatroomRequestResolver) {
 	chatroomReq := csprotocol.ChatroomReq{}
 
 	// block until a ChatroomReq has been received
@@ -53,7 +53,7 @@ func (cc ClientConnection) resolveRoomReq(resolver chatroomRequestResolver) {
 
 	// resolve chatroom
 	error := resolver(cc, chatroomReq)
-	reqSatisfied = error == nil
+	reqSatisfied := error == nil
 	if reqSatisfied {
 		cc.Roomname = chatroomReq.ChatroomID
 	}
@@ -62,9 +62,9 @@ func (cc ClientConnection) resolveRoomReq(resolver chatroomRequestResolver) {
 	cc.sendRequestStatus(reqSatisfied)
 }
 
-type broadcastRequestResolver func(ClientConnection, csprotocol.MessageBroadcastReq) error
+type broadcastRequestResolver func(*ClientConnection, csprotocol.MessageBroadcastReq) error
 
-func (cc ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequestResolver) {
+func (cc *ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequestResolver) {
 	broadcastReq := csprotocol.MessageBroadcastReq{}
 
 	// block until a request has been received
@@ -72,7 +72,7 @@ func (cc ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequestR
 	json.Unmarshal(data, &broadcastReq)
 
 	// resolve broadcast req
-	err := resolver(cc, broadcastRequestResolver)
+	err := resolver(cc, broadcastReq)
 	reqSatisfied := err == nil
 
 	// acknowledge satisfaction

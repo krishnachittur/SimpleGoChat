@@ -9,18 +9,18 @@ type Chatroom struct {
 	ID string
 	password string
 
-	clients []ClientConnection
+	clients []*ClientConnection
 	clientsLock sync.Mutex
 }
 
-func (room Chatroom) broadcastToAllExcpet(exclude ClientConnection, msgBcstRq csprotocol.MessageBroadcastReq) {
-	room.clientsLock()
-	defer room.clientsUnlock()
+func (room *Chatroom) broadcastToAllExcept(excludedClient *ClientConnection, msgNtf csprotocol.MessageNotification) {
+	room.clientsLock.Lock()
+	defer room.clientsLock.Unlock()
 
-	for _, client in range room.clients() {
-		if client.ID == exclude.ID {
+	for _, client := range room.clients {
+		if client.ID == excludedClient.ID {
 			continue
 		}
-		client.sendNotification(msgBcstRq)
+		client.sendMessageNotification(msgNtf)
 	}
 }

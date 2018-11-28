@@ -5,21 +5,25 @@ import (
 	"net"
 	"os"
 	"sync"
+	"errors"
 	"../csprotocol"
 )
 
+// Server implements the Endpoint interface. It services clients.
 type Server struct {
 	networkListener net.Listener
 
-	roomnameToRoom   map[string]Chatroom
+	roomnameToRoom   map[string]*Chatroom
 	roomnameToRoomLock sync.Mutex
 }
 
+// Setup sets up the connection to listen on the supplied port
 func (server *Server) Setup(host string, port string) {
 	server.networkListener, _ = net.Listen("tcp", ":"+port)
 }
 
-func (server *Server) resolveChatroomRequest(requestingClient ClientConnection, chatroomReq csprotocol.ChatroomReq) err error {
+// Determines whether or not to let requestingClient either a) Make a new chatroom or b) join an existing chatroom
+func (server *Server) resolveChatroomReq(requestingClient *ClientConnection, chatroomReq csprotocol.ChatroomReq) error {
 	server.roomnameToRoomLock.Lock()
 	defer server.roomnameToRoomLock.Unlock()
 
@@ -27,57 +31,64 @@ func (server *Server) resolveChatroomRequest(requestingClient ClientConnection, 
 
 	if chatroomReq.IsNewChatroom {
 		if ok {
-			error "trying to create a chatroom that already exists"
-			return
+			return errors.New("trying to create a chatroom that already exists")
 		}
-		newRoom := Chatroom{ID: chatroomReq.ChatroomID, password: chatroomReq.ChatroomPassword}
+		newRoom := &Chatroom{ID: chatroomReq.ChatroomID, password: chatroomReq.ChatroomPassword}
 		newRoom.clients = append(newRoom.clients, requestingClient)
 		server.roomnameToRoom[chatroomReq.ChatroomID] = newRoom
-		return true
 	} else {
 		if !ok {
-			error "trying to join a chatroom doesn't exist"
-			return false
+			return errors.New("trying to join a chatroom doesn't exist")
 		}
 		chatroom.clientsLock.Lock()
 		defer chatroom.clientsLock.Unlock()
 		chatroom.clients = append(chatroom.clients, requestingClient)
-		return true
 	}
+	return nil
 }
 
-func (server *Server) resolveMessageBroadcastReq(requestingClient ClientConnection, msgBcstRq csprotocol.MessageBroadcastReq) bool {
-	roomnameToRoomLock.Lock()
-	chatroom, _ := server.roomnameToRoom[requestingClient.roomname]
-	roomnameToRoomLock.Unlock()
+// Broadcasts a message to everyone in the requestingClient's chatroom.
+func (server *Server) resolveMessageBroadcastReq(requestingClient *ClientConnection, msgBcstRq csprotocol.MessageBroadcastReq) error {
+	server.roomnameToRoomLock.Lock()
+	chatroom, _ := server.roomnameToRoom[requestingClient.Roomname]
+	server.roomnameToRoomLock.Unlock()
 
-	MessageNotification{Message: msgBcstRq, ClientID: requestingClient.ID}
-	chatroom.broadcastToAllExcept(requestingClient, msgBcstRq)
+	msgNtf := csprotocol.MessageNotification{Message: msgBcstRq.Message, ClientID: requestingClient.ID}
+	chatroom.broadcastToAllExcept(requestingClient, msgNtf)
+	return nil
 }
 
-func (server *Server) newClient(clientConn net.Conn) {
-	client := ClientConnection{
+// Determines client intent then forever listens for messages (i.e. Message Broadcast Requests) from the client and forwards them.
+func (server *Server) handleClient(clientConn net.Conn) {
+	client := &ClientConnection{
 		Connection: clientConn,
 		ConnectionReader: bufio.NewReader(clientConn),
 	}
+
+	// Determine the client's identity.
 	client.resolveIdentityReq()
-	client.resolveRoomRequest(
-		func (rq ClientConnection, crq csprotocol.ChatroomReq) error {
-			return server.resolveChatroomRequest(rq, crq)
+
+	// Determine the chatroom the client wants to join.
+	client.resolveRoomReq(
+		func (rq *ClientConnection, crq csprotocol.ChatroomReq) error {
+			return server.resolveChatroomReq(rq, crq)
 		})
 
 	for {
+		// Wait for a Message Broadcast request from the client.
+		// Then, broadcast the message in the chatroom.
 		client.resolveMessageBroadcastReq(
-			func (rq ClientConenction, mrq csprotocol.MessageBroadcastReq) error {
-				return server.resolveMessageBroadcastRequest(rq, mrq)
+			func (rq *ClientConnection, mrq csprotocol.MessageBroadcastReq) error {
+				return server.resolveMessageBroadcastReq(rq, mrq)
 			})
 	}
 }
 
+// Forever listen for new connections.
 func (server *Server) registerNewConnections() {
 	for {
 		newConnection, _ := server.networkListener.Accept()
-		go server.newClient(newConnection)
+		go server.handleClient(newConnection)
 	}
 }
 
@@ -85,6 +96,7 @@ func (server *Server) terminate() {
 	// TODO
 }
 
+// RunLoop spawns a go thread that listens for new client connections.
 func (server *Server) RunLoop(quit chan os.Signal) {
 	go server.registerNewConnections()
 	<-quit
