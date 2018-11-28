@@ -1,55 +1,63 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"./client"
+	"./server"
 )
 
-//client or server endpoint
+// Endpoint is a client or server endpoint
 type Endpoint interface {
-	setup(host string, port string)
-	run_loop(quit chan bool)
+	Setup(host string, port string)
+	RunLoop(quit chan os.Signal)
 }
 
-func exit_message(message string) bool {
-	return strings.TrimSpace(strings.ToLower(message)) == "\\quit"
+type config struct {
+	NodeType string
+	HostIP   string
+	HostPort string
 }
 
-func print_help() {
-	fmt.Println("Usage: <program> [\"client\"|\"server\"] <host> <port>")
-	fmt.Println("The <host> field is ignored if this program is run as a server.")
+func (c config) isServer() bool {
+	return strings.ToLower(c.NodeType) == "server"
+}
+
+func (c config) isClient() bool {
+	return strings.ToLower(c.NodeType) == "client"
+}
+
+func getConfig() (p config) {
+	defer flag.Parse()
+	flag.StringVar(&p.NodeType, "node_type", "client", "'client' or 'server'")
+	flag.StringVar(&p.HostIP, "host_ip", "localhost", "IP of host application.")
+	flag.StringVar(&p.HostPort, "host_port", "5050", "Port of host application.")
+	return
+}
+
+func sigTermChannel() chan os.Signal {
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	return quit
 }
 
 func main() {
-	if len(os.Args) != 4 {
-		print_help()
-		return
-	}
-	args := os.Args[1:]
-	node_type := args[0]
-	host := args[1]
-	port := args[2]
+	cfg := getConfig()
 
 	var node Endpoint
-	if node_type == "client" {
-		node = &Client{}
-	} else if node_type == "server" {
-		node = &Server{}
+	if cfg.isClient() {
+		node = &Client.Client{}
+	} else if cfg.isServer() {
+		node = &Server.Server{}
 	} else {
-		print_help()
+		fmt.Println("Error: `node_type` must be client or server")
 		return
 	}
 
-	node.setup(host, port)
-
-	fmt.Println("Future Gadget Laboratory Chat Room")
-	fmt.Println("----------------------------------")
-
-	quit := make(chan bool)
-
-	go node.run_loop(quit)
-
-	<-quit
-	fmt.Println("Terminating")
+	node.Setup(cfg.HostIP, cfg.HostPort)
+	node.RunLoop(sigTermChannel())
 }
