@@ -33,7 +33,7 @@ func (client *Client) readInput() string {
 }
 
 func (client *Client) getNewClientID() {
-	fmt.Print("Enter the User Name you want: ")
+	fmt.Print("Enter the username you want: ")
 	for {
 		// determine parameters
 		identityRequest := csprotocol.ClientIdentityReq{}
@@ -50,7 +50,7 @@ func (client *Client) getNewClientID() {
 		// check to make sure request succeded
 		reqStatus, _ := client.getRequestStatus()
 		if !reqStatus.PreviousRequestSucceeded {
-			fmt.Print("Couldn't get requested username. Please try another one:")
+			fmt.Print("Couldn't get requested username. Please try another one: ")
 			continue
 		}
 		break
@@ -62,7 +62,7 @@ func (client *Client) joinChatroom() {
 		// determine parameters
 		chatroomReq := csprotocol.ChatroomReq{}
 
-		fmt.Print("Press 'y' if you want to make a new chatroom and 'n' if you want to join an existing one:")
+		fmt.Print("Press 'y' if you want to make a new chatroom and 'n' if you want to join an existing one: ")
 		yOrN := client.readInput()
 		if strings.ToLower(yOrN) == "y" {
 			chatroomReq.IsNewChatroom = true
@@ -73,10 +73,10 @@ func (client *Client) joinChatroom() {
 			continue
 		}
 
-		fmt.Print("Enter the name of the chatroom you want to join or create:")
+		fmt.Print("Enter the name of the chatroom you want to join or create: ")
 		chatroomReq.ChatroomID = client.readInput()
 
-		fmt.Print("Enter the password of the chatroom you want to join or create:")
+		fmt.Print("Enter the password of the chatroom you want to join or create: ")
 		chatroomReq.ChatroomPassword = client.readInput()
 
 		// request chatroom
