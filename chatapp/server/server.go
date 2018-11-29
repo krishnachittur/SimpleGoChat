@@ -54,6 +54,10 @@ func (server *Server) resolveChatroomReq(requestingClient *ClientConnection, cha
 
 // Broadcasts a message to everyone in the requestingClient's chatroom.
 func (server *Server) resolveMessageBroadcastReq(requestingClient *ClientConnection, msgBcstRq csprotocol.MessageBroadcastReq) error {
+	if msgBcstRq.LogOut {
+		return errors.New("logging out a client")
+	}
+
 	server.roomnameToRoomLock.Lock()
 	chatroom, _ := server.roomnameToRoom[requestingClient.Roomname]
 	server.roomnameToRoomLock.Unlock()

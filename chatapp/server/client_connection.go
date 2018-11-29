@@ -92,9 +92,9 @@ func (cc *ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequest
 	// resolve broadcast req
 	err = resolver(cc, broadcastReq)
 	if err != nil {
-		log.Println("Error: " + err.Error())
+		log.Println(err.Error())
 	}
 	// TODO: maybe in the future support acknowledgements on messages as well
 	// cc.sendRequestStatus(reqSatisfied)
-	return nil
+	return err
 }
