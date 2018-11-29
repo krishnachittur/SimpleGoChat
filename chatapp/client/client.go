@@ -132,7 +132,7 @@ func (client *Client) listenLoop() {
 		clientID := strings.TrimSpace(mn.ClientID)
 		message := strings.TrimSpace(mn.Message)
 		if len(message) > 0 {
-			fmt.Println(clientID + ": " + message)
+			fmt.Print(clientID + ": " + message + "\n> ")
 		}
 	}
 }
