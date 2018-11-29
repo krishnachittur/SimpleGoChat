@@ -63,12 +63,9 @@ func (client *Client) joinChatroom() {
 
 		fmt.Print("Press 'y' if you want to make a new chatroom and 'n' if you want to join an existing one:")
 		yOrN := client.readInput()
-		fmt.Println(yOrN)
 		if strings.ToLower(yOrN) == "y" {
-			fmt.Println("Making a new chatroom")
 			chatroomReq.IsNewChatroom = true
 		} else {
-			fmt.Println("Joining an exisiting chatroom")
 			chatroomReq.IsNewChatroom = false
 		}
 
@@ -151,14 +148,6 @@ func (client *Client) sendLoop() {
 		// request message to be broadcasted
 		reqMarshalled, _ := json.Marshal(messageReq)
 		fmt.Fprintf(client.connection, string(reqMarshalled)+"\n")
-
-		// check to make sure request succeded
-		reqStatus, _ := client.getRequestStatus()
-		if !reqStatus.PreviousRequestSucceeded {
-			fmt.Println("Failed to send message due to a server error. Try again.")
-			continue
-		}
-		fmt.Println("--Sent--")
 	}
 }
 
@@ -169,12 +158,6 @@ func (client *Client) terminate() {
 	// request termination of client connection (will happen 5 seconds from request time)
 	reqMarshalled, _ := json.Marshal(messageReq)
 	fmt.Fprintf(client.connection, string(reqMarshalled)+"\n")
-
-	// check to make sure request succeded
-	reqStatus, _ := client.getRequestStatus()
-	if !reqStatus.PreviousRequestSucceeded {
-		fmt.Println("LogOut request failed. Will forcefully terminate.")
-	}
 }
 
 func (client *Client) RunLoop(quit chan os.Signal) {

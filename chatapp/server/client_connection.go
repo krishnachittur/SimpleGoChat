@@ -41,12 +41,10 @@ func (cc *ClientConnection) resolveIdentityReq() {
 
 	// block until a client identity request has been received
 	data, _ := cc.ConnectionReader.ReadBytes('\n')
-	log.Printf(string(data))
 	json.Unmarshal(data, &identityReq)
 
 	// set the client ID
 	cc.ID = identityReq.RequestedID
-	log.Printf("Setting client ID to %s", cc.ID)
 
 	// acknowledge satisfaction
 	cc.sendRequestStatus(true)
@@ -59,18 +57,13 @@ func (cc *ClientConnection) resolveRoomReq(resolver chatroomRequestResolver) {
 
 	// block until a ChatroomReq has been received
 	data, _ := cc.ConnectionReader.ReadBytes('\n')
-	log.Println(string(data))
 	json.Unmarshal(data, &chatroomReq)
 
 	// resolve chatroom
 	error := resolver(cc, chatroomReq)
 	reqSatisfied := error == nil
-	fmt.Printf("Resolver returned %t", reqSatisfied)
 	if reqSatisfied {
 		cc.Roomname = chatroomReq.ChatroomID
-		log.Printf("Setting client roomname to %s", cc.Roomname)
-	} else {
-		log.Printf(error.Error())
 	}
 
 	// acknowledge satisfaction
@@ -84,12 +77,15 @@ func (cc *ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequest
 
 	// block until a request has been received
 	data, _ := cc.ConnectionReader.ReadBytes('\n')
+	log.Println(string(data))
 	json.Unmarshal(data, &broadcastReq)
 
 	// resolve broadcast req
 	err := resolver(cc, broadcastReq)
 	reqSatisfied := err == nil
 
-	// acknowledge satisfaction
-	cc.sendRequestStatus(reqSatisfied)
+	log.Printf("RESOLVER RESOVLED Broadcast Req %t\n", reqSatisfied)
+
+	// TODO: maybe in the future support acknowledge satisfaction
+	// cc.sendRequestStatus(reqSatisfied)
 }
