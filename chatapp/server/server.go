@@ -96,7 +96,7 @@ func (server *Server) registerNewConnections() {
 }
 
 func (server *Server) terminate() {
-	// TODO
+	log.Println("\nGoodbye!")
 }
 
 // RunLoop spawns a go thread that listens for new client connections.
