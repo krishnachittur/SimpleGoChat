@@ -4,22 +4,23 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"net"
 	"log"
+	"net"
+
 	"../csprotocol"
 )
 
 type ClientConnection struct {
-	ID         string
+	ID       string
 	Roomname string
 
-	Connection net.Conn
-	ConnectionReader     *bufio.Reader
+	Connection       net.Conn
+	ConnectionReader *bufio.Reader
 }
 
 func NewClientConnection(newConn net.Conn) *ClientConnection {
-	return &ClientConnection {
-		Connection: newConn,
+	return &ClientConnection{
+		Connection:       newConn,
 		ConnectionReader: bufio.NewReader(newConn),
 	}
 }
@@ -77,15 +78,13 @@ func (cc *ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequest
 
 	// block until a request has been received
 	data, _ := cc.ConnectionReader.ReadBytes('\n')
-	log.Println(string(data))
 	json.Unmarshal(data, &broadcastReq)
 
 	// resolve broadcast req
 	err := resolver(cc, broadcastReq)
-	reqSatisfied := err == nil
-
-	log.Printf("RESOLVER RESOVLED Broadcast Req %t\n", reqSatisfied)
-
-	// TODO: maybe in the future support acknowledge satisfaction
+	if err != nil {
+		log.Println("Error: " + err.Error())
+	}
+	// TODO: maybe in the future support acknowledgements on messages as well
 	// cc.sendRequestStatus(reqSatisfied)
 }

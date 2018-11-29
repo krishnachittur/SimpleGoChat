@@ -2,21 +2,22 @@ package Server
 
 import (
 	"sync"
+
 	"../csprotocol"
 )
 
 type Chatroom struct {
-	ID string
+	ID       string
 	password string
 
-	clients []*ClientConnection
+	clients     []*ClientConnection
 	clientsLock *sync.Mutex
 }
 
 func NewChatroom(ID string, password string) *Chatroom {
 	return &Chatroom{
 		ID: ID, password: password,
-		clients: make([]*ClientConnection, 0),
+		clients:     make([]*ClientConnection, 0),
 		clientsLock: &sync.Mutex{},
 	}
 }
@@ -40,3 +41,13 @@ func (room *Chatroom) addClient(newClient *ClientConnection) {
 	room.clients = append(room.clients, newClient)
 }
 
+func (room *Chatroom) removeClient(clientToRemove *ClientConnection) {
+	room.clientsLock.Lock()
+	defer room.clientsLock.Unlock()
+
+	for i, client := range room.clients {
+		if client.ID == clientToRemove.ID {
+			room.clients = append(room.clients[:i], room.clients[i+1:]...)
+		}
+	}
+}

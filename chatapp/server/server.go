@@ -1,11 +1,12 @@
 package Server
 
 import (
+	"errors"
+	"log"
 	"net"
 	"os"
 	"sync"
-	"errors"
-	"log"
+
 	"../csprotocol"
 )
 
@@ -13,7 +14,7 @@ import (
 type Server struct {
 	networkListener net.Listener
 
-	roomnameToRoom   map[string]*Chatroom
+	roomnameToRoom     map[string]*Chatroom
 	roomnameToRoomLock *sync.Mutex
 }
 
@@ -68,7 +69,7 @@ func (server *Server) handleClient(client *ClientConnection) {
 
 	// Determine the chatroom the client wants to join.
 	client.resolveRoomReq(
-		func (rq *ClientConnection, crq csprotocol.ChatroomReq) error {
+		func(rq *ClientConnection, crq csprotocol.ChatroomReq) error {
 			return server.resolveChatroomReq(rq, crq)
 		})
 
@@ -78,7 +79,7 @@ func (server *Server) handleClient(client *ClientConnection) {
 		// Wait for a Message Broadcast request from the client.
 		// Then, broadcast the message in the chatroom.
 		client.resolveMessageBroadcastReq(
-			func (rq *ClientConnection, mrq csprotocol.MessageBroadcastReq) error {
+			func(rq *ClientConnection, mrq csprotocol.MessageBroadcastReq) error {
 				return server.resolveMessageBroadcastReq(rq, mrq)
 			})
 	}

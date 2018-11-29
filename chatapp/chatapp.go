@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
-	"log"
+
 	"./client"
 	"./server"
 )
@@ -33,14 +33,14 @@ func (c config) isClient() bool {
 }
 
 func (c config) validateConfig() {
-	if c.NodeType == "" {
+	if !c.isServer() && !c.isClient() {
 		log.Fatal("The `node_type` flag is required! Please set it to either `client` or `server`.")
 	} else if c.HostIP == "" {
 		log.Fatal("The `host_ip` flag is required! If you're trying to run the client code, set it to the Host's IP." +
-			"If you're trying to run the server code, set it to `localhost`");
+			"If you're trying to run the server code, set it to `localhost`")
 	} else if c.HostPort == "" {
 		log.Fatal("The `host_port` flag is required! If you're trying to run the client code, set it to the Host's Port." +
-			"If you're trying to run the server code, set it to some unused port > 1024.");
+			"If you're trying to run the server code, set it to some unused port > 1024.")
 	}
 }
 
@@ -65,11 +65,8 @@ func main() {
 	var node Endpoint
 	if cfg.isClient() {
 		node = &Client.Client{}
-	} else if cfg.isServer() {
-		node = &Server.Server{}
 	} else {
-		fmt.Println("Error: `node_type` must be client or server")
-		os.Exit(1)	
+		node = &Server.Server{}
 	}
 
 	node.Setup(cfg.HostIP, cfg.HostPort)
