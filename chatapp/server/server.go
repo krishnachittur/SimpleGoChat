@@ -2,6 +2,7 @@ package Server
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -62,6 +63,15 @@ func (server *Server) resolveMessageBroadcastReq(requestingClient *ClientConnect
 	return nil
 }
 
+func (server *Server) closeConnectionWithClient(closingClient *ClientConnection) {
+	server.roomnameToRoomLock.Lock()
+	chatroom, _ := server.roomnameToRoom[closingClient.Roomname]
+	server.roomnameToRoomLock.Unlock()
+
+	chatroom.removeClient(closingClient)
+	closingClient.Connection.Close()
+}
+
 // Determines client intent then forever listens for messages (i.e. Message Broadcast Requests) from the client and forwards them.
 func (server *Server) handleClient(client *ClientConnection) {
 	// Determine the client's identity.
@@ -78,11 +88,16 @@ func (server *Server) handleClient(client *ClientConnection) {
 	for {
 		// Wait for a Message Broadcast request from the client.
 		// Then, broadcast the message in the chatroom.
-		client.resolveMessageBroadcastReq(
+		err := client.resolveMessageBroadcastReq(
 			func(rq *ClientConnection, mrq csprotocol.MessageBroadcastReq) error {
 				return server.resolveMessageBroadcastReq(rq, mrq)
 			})
+		if err != nil {
+			server.closeConnectionWithClient(client)
+			break
+		}
 	}
+	fmt.Printf("User %s has logged out", client.ID)
 }
 
 // Forever listen for new connections.

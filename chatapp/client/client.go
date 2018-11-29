@@ -66,8 +66,11 @@ func (client *Client) joinChatroom() {
 		yOrN := client.readInput()
 		if strings.ToLower(yOrN) == "y" {
 			chatroomReq.IsNewChatroom = true
-		} else {
+		} else if strings.ToLower(yOrN) == "n" {
 			chatroomReq.IsNewChatroom = false
+		} else {
+			fmt.Println("You didn't type 'y' or 'n'. Retry.")
+			continue
 		}
 
 		fmt.Print("Enter the name of the chatroom you want to join or create:")
@@ -96,14 +99,12 @@ func (client *Client) joinChatroom() {
 func (client *Client) getRequestStatus() (reqStatus csprotocol.RequestStatus, err error) {
 	data, err := client.networkReader.ReadBytes('\n')
 	if err != nil {
-		fmt.Println("error in the received request status")
-		return
+		log.Fatal("error in the received request status")
 	}
 
 	err = json.Unmarshal(data, &reqStatus)
 	if err != nil {
-		fmt.Println("error when unmarshalling request status")
-		return
+		log.Fatal("error when unmarshalling request status")
 	}
 	return
 }
@@ -111,14 +112,12 @@ func (client *Client) getRequestStatus() (reqStatus csprotocol.RequestStatus, er
 func (client *Client) getMessageNotification() (mn csprotocol.MessageNotification, err error) {
 	data, err := client.networkReader.ReadBytes('\n')
 	if err != nil {
-		fmt.Println("error in the received message")
-		return
+		log.Fatal("error in the received message")
 	}
 
 	err = json.Unmarshal(data, &mn)
 	if err != nil {
-		fmt.Println("error when unmarshalling received message")
-		return
+		log.Fatal("error when unmarshalling received message")
 	}
 	return
 }
@@ -156,7 +155,7 @@ func (client *Client) terminate() {
 	// determine parameters
 	messageReq := csprotocol.MessageBroadcastReq{LogOut: true, Message: "Goodbye!"}
 
-	// request termination of client connection (will happen 5 seconds from request time)
+	// request termination of client connection
 	reqMarshalled, _ := json.Marshal(messageReq)
 	fmt.Fprintf(client.connection, string(reqMarshalled)+"\n")
 }

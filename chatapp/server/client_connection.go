@@ -54,37 +54,47 @@ func (cc *ClientConnection) resolveIdentityReq() {
 type chatroomRequestResolver func(*ClientConnection, csprotocol.ChatroomReq) error
 
 func (cc *ClientConnection) resolveRoomReq(resolver chatroomRequestResolver) {
-	chatroomReq := csprotocol.ChatroomReq{}
+	reqSatisfied := false
+	for !reqSatisfied {
+		chatroomReq := csprotocol.ChatroomReq{}
 
-	// block until a ChatroomReq has been received
-	data, _ := cc.ConnectionReader.ReadBytes('\n')
-	json.Unmarshal(data, &chatroomReq)
+		// block until a ChatroomReq has been received
+		data, _ := cc.ConnectionReader.ReadBytes('\n')
+		json.Unmarshal(data, &chatroomReq)
 
-	// resolve chatroom
-	error := resolver(cc, chatroomReq)
-	reqSatisfied := error == nil
-	if reqSatisfied {
-		cc.Roomname = chatroomReq.ChatroomID
+		// resolve chatroom
+		error := resolver(cc, chatroomReq)
+		reqSatisfied = error == nil
+		if reqSatisfied {
+			cc.Roomname = chatroomReq.ChatroomID
+		}
+
+		// acknowledge satisfaction
+		cc.sendRequestStatus(reqSatisfied)
 	}
-
-	// acknowledge satisfaction
-	cc.sendRequestStatus(reqSatisfied)
 }
 
 type broadcastRequestResolver func(*ClientConnection, csprotocol.MessageBroadcastReq) error
 
-func (cc *ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequestResolver) {
+func (cc *ClientConnection) resolveMessageBroadcastReq(resolver broadcastRequestResolver) error {
 	broadcastReq := csprotocol.MessageBroadcastReq{}
 
 	// block until a request has been received
 	data, _ := cc.ConnectionReader.ReadBytes('\n')
-	json.Unmarshal(data, &broadcastReq)
+	err := json.Unmarshal(data, &broadcastReq)
+
+	// this error will happen only if the data being sent isn't of type MessageBroadcastReq
+	// this will happen only if the client wants to log out
+	if err != nil {
+		return err
+	}
 
 	// resolve broadcast req
-	err := resolver(cc, broadcastReq)
+	err = resolver(cc, broadcastReq)
 	if err != nil {
 		log.Println("Error: " + err.Error())
 	}
 	// TODO: maybe in the future support acknowledgements on messages as well
 	// cc.sendRequestStatus(reqSatisfied)
+	return nil
 }
